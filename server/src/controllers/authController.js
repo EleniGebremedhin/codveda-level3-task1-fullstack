@@ -1,6 +1,4 @@
 const User = require("../models/User");
-console.log("Imported User model:", typeof User);
-console.log("User.findOne:", typeof User.findOne);
 const jwt = require("jsonwebtoken");
 
 // Generate JWT token

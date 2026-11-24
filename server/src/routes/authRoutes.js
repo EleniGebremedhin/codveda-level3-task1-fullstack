@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
+const { protect } = require("../middleware/authMiddleware");
 const { registerUser, loginUser } = require("../controllers/authController");
 
 // POST /api/auth/register
@@ -8,6 +9,12 @@ router.post("/register", registerUser);
 
 // POST /api/auth/login
 router.post("/login", loginUser);
-console.log("Router inside authRoutes:", typeof router);
+
+// GET /api/auth/me
+router.get("/me", protect, (req, res) => {
+  res.status(200).json({
+    user: req.user,
+  });
+});
 
 module.exports = router;
