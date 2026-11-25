@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
+import Login from "./components/Login";
+import api from "./services/api";
 
 const initialTasks = [
   {
@@ -33,7 +35,74 @@ const initialTasks = [
 ];
 
 function App() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const checkLogin = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const response = await api.get("/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        setUser(response.data.user);
+      } catch (error) {
+        localStorage.removeItem("token");
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkLogin();
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchDashboardData = async () => {
+      setDataLoading(true);
+      setDataError("");
+
+      try {
+        const [projectResponse, taskResponse] = await Promise.all([
+          api.get("/projects"),
+          api.get("/tasks"),
+        ]);
+
+        setProjects(projectResponse.data);
+        setTasks(taskResponse.data);
+      } catch (error) {
+        setDataError(
+          error.response?.data?.message || "Unable to load projects and tasks.",
+        );
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  const handleLogin = (loggedInUser) => {
+    setUser(loggedInUser);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+  };
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
 
   const completed = tasks.filter((task) => task.status === "Completed").length;
@@ -47,18 +116,37 @@ function App() {
       ? tasks
       : tasks.filter((task) => task.status === activeFilter);
 
-  const toggleTask = (id) => {
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              status: task.status === "Completed" ? "In Progress" : "Completed",
-            }
-          : task,
-      ),
-    );
+  const toggleTask = async (id) => {
+    const task = tasks.find((item) => item._id === id);
+
+    if (!task) return;
+
+    const newStatus = task.status === "Completed" ? "In Progress" : "Completed";
+
+    try {
+      await api.patch(`/tasks/${id}/status`, {
+        status: newStatus,
+      });
+
+      setTasks((current) =>
+        current.map((item) =>
+          item._id === id ? { ...item, status: newStatus } : item,
+        ),
+      );
+    } catch (error) {
+      setDataError(
+        error.response?.data?.message || "Unable to update task status.",
+      );
+    }
   };
+
+  if (authLoading) {
+    return <div>Loading TeamSpace...</div>;
+  }
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app">
@@ -84,11 +172,18 @@ function App() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="profile-avatar">EG</div>
-          <div>
-            <strong>Workspace User</strong>
-            <small>Team Member</small>
+          <div className="profile-avatar">
+            {user.name.charAt(0).toUpperCase()}
           </div>
+
+          <div>
+            <strong>{user.name}</strong>
+            <small>{user.role}</small>
+          </div>
+
+          <button className="logout-button" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </aside>
 
@@ -146,47 +241,47 @@ function App() {
           </div>
 
           <div className="project-grid">
-            <div className="project-card">
-              <div className="project-icon purple">W</div>
-              <span className="project-status">Active</span>
-              <h3>Website Redesign</h3>
-              <p>Redesigning the company website.</p>
-              <div className="progress-label">
-                <span>Progress</span>
-                <strong>75%</strong>
-              </div>
-              <div className="progress-bar">
-                <div style={{ width: "75%" }} />
-              </div>
-            </div>
+            {projects.length === 0 ? (
+              <p>No projects available yet.</p>
+            ) : (
+              projects.map((project) => {
+                const projectTasks = tasks.filter(
+                  (task) =>
+                    String(task.project?._id || task.project) ===
+                    String(project._id),
+                );
 
-            <div className="project-card">
-              <div className="project-icon pink">M</div>
-              <span className="project-status">Active</span>
-              <h3>Mobile Application</h3>
-              <p>Building a new mobile experience.</p>
-              <div className="progress-label">
-                <span>Progress</span>
-                <strong>45%</strong>
-              </div>
-              <div className="progress-bar">
-                <div style={{ width: "45%" }} />
-              </div>
-            </div>
+                const completedTasks = projectTasks.filter(
+                  (task) => task.status === "Completed",
+                ).length;
 
-            <div className="project-card">
-              <div className="project-icon blue">A</div>
-              <span className="project-status">Active</span>
-              <h3>Marketing Campaign</h3>
-              <p>Planning our upcoming campaign.</p>
-              <div className="progress-label">
-                <span>Progress</span>
-                <strong>30%</strong>
-              </div>
-              <div className="progress-bar">
-                <div style={{ width: "30%" }} />
-              </div>
-            </div>
+                const progress = projectTasks.length
+                  ? Math.round((completedTasks / projectTasks.length) * 100)
+                  : 0;
+
+                return (
+                  <div className="project-card" key={project._id}>
+                    <div className="project-icon purple">
+                      {project.name.charAt(0).toUpperCase()}
+                    </div>
+
+                    <span className="project-status">{project.status}</span>
+
+                    <h3>{project.name}</h3>
+                    <p>{project.description}</p>
+
+                    <div className="progress-label">
+                      <span>Progress</span>
+                      <strong>{progress}%</strong>
+                    </div>
+
+                    <div className="progress-bar">
+                      <div style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
 
@@ -209,31 +304,46 @@ function App() {
           </div>
 
           <div className="task-list">
-            {filteredTasks.map((task) => (
-              <div className="task-row" key={task.id}>
-                <div className="task-info">
-                  <button
-                    className={`task-check ${task.status === "Completed" ? "checked" : ""}`}
-                    onClick={() => toggleTask(task.id)}
-                    aria-label={`Toggle ${task.title}`}
-                  >
-                    {task.status === "Completed" ? "✓" : ""}
-                  </button>
-                  <div>
-                    <strong>{task.title}</strong>
-                    <small>{task.project}</small>
+            {dataLoading ? (
+              <p>Loading tasks...</p>
+            ) : dataError ? (
+              <p className="login-error">{dataError}</p>
+            ) : filteredTasks.length === 0 ? (
+              <p>No tasks found.</p>
+            ) : (
+              filteredTasks.map((task) => (
+                <div className="task-row" key={task._id}>
+                  <div className="task-info">
+                    <button
+                      className={`task-check ${
+                        task.status === "Completed" ? "checked" : ""
+                      }`}
+                      onClick={() => toggleTask(task._id)}
+                      aria-label={`Toggle ${task.title}`}
+                    >
+                      {task.status === "Completed" ? "✓" : ""}
+                    </button>
+
+                    <div>
+                      <strong>{task.title}</strong>
+                      <small>{task.project?.name || "No project"}</small>
+                    </div>
                   </div>
+
+                  <span
+                    className={`status ${task.status
+                      .toLowerCase()
+                      .replace(" ", "-")}`}
+                  >
+                    {task.status}
+                  </span>
+
+                  <span className={`priority ${task.priority.toLowerCase()}`}>
+                    {task.priority}
+                  </span>
                 </div>
-                <span
-                  className={`status ${task.status.toLowerCase().replace(" ", "-")}`}
-                >
-                  {task.status}
-                </span>
-                <span className={`priority ${task.priority.toLowerCase()}`}>
-                  {task.priority}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
       </main>
