@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import Login from "./components/Login";
 import api from "./services/api";
+import Register from "./components/Register";
 
 const initialTasks = [
   {
@@ -38,6 +39,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showRegister, setShowRegister] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
 
@@ -218,9 +220,18 @@ function App() {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    return showRegister ? (
+      <Register
+        onLogin={handleLogin}
+        onShowLogin={() => setShowRegister(false)}
+      />
+    ) : (
+      <Login
+        onLogin={handleLogin}
+        onShowRegister={() => setShowRegister(true)}
+      />
+    );
   }
-
   return (
     <div className="app">
       <aside className="sidebar">
@@ -556,6 +567,40 @@ function App() {
             )}
           </div>
         </section>
+        {user.role === "admin" && (
+          <section className="tasks-section" id="team">
+            <div className="section-heading">
+              <div>
+                <h2>Team Members</h2>
+                <p>Manage your registered team members.</p>
+              </div>
+            </div>
+
+            <div className="task-list">
+              {users.filter((member) => member.role === "member").length ===
+              0 ? (
+                <p>No team members registered yet.</p>
+              ) : (
+                users
+                  .filter((member) => member.role === "member")
+                  .map((member) => (
+                    <div className="task-row" key={member._id}>
+                      <div className="task-info">
+                        <div className="profile-avatar">
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <strong>{member.name}</strong>
+                          <small>{member.email}</small>
+                        </div>
+                      </div>
+                      <span className="status completed">Member</span>
+                    </div>
+                  ))
+              )}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

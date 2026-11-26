@@ -1,7 +1,7 @@
 import { useState } from "react";
 import api from "../services/api";
 
-function Login({ onLogin }) {
+function Login({ onLogin, onShowRegister }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -61,6 +61,12 @@ function Login({ onLogin }) {
         <button type="submit" disabled={loading}>
           {loading ? "Signing in..." : "Sign In"}
         </button>
+        <p>
+          Don't have an account?{" "}
+          <button type="button" onClick={onShowRegister}>
+            Sign Up
+          </button>
+        </p>
       </form>
     </div>
   );
