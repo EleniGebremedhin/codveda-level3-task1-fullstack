@@ -36,7 +36,25 @@ const initialTasks = [
 
 function App() {
   const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    description: "",
+    project: "",
+    assignedTo: "",
+    priority: "Medium",
+    dueDate: "",
+  });
+
+  const [projectForm, setProjectForm] = useState({
+    name: "",
+    description: "",
+    dueDate: "",
+  });
 
   useEffect(() => {
     const checkLogin = async () => {
@@ -44,6 +62,7 @@ function App() {
 
       if (!token) {
         setAuthLoading(false);
+
         return;
       }
 
@@ -79,6 +98,13 @@ function App() {
 
         setProjects(projectResponse.data);
         setTasks(taskResponse.data);
+
+        if (user.role === "admin") {
+          const userResponse = await api.get("/auth/users");
+          setUsers(userResponse.data);
+        } else {
+          setUsers([]);
+        }
       } catch (error) {
         setDataError(
           error.response?.data?.message || "Unable to load projects and tasks.",
@@ -90,6 +116,53 @@ function App() {
 
     fetchDashboardData();
   }, [user]);
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await api.post("/projects", projectForm);
+
+      setProjects((prevProjects) => [
+        response.data.project || response.data,
+        ...prevProjects,
+      ]);
+
+      setProjectForm({
+        name: "",
+        description: "",
+        dueDate: "",
+      });
+
+      setShowProjectForm(false);
+      alert("Project created successfully!");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to create project.");
+    }
+  };
+  const handleCreateTask = async (e) => {
+    e.preventDefault();
+
+    try {
+      await api.post("/tasks", taskForm);
+
+      const response = await api.get("/tasks");
+      setTasks(response.data);
+
+      setTaskForm({
+        title: "",
+        description: "",
+        project: "",
+        assignedTo: "",
+        priority: "Medium",
+        dueDate: "",
+      });
+
+      setShowTaskForm(false);
+      alert("Task assigned successfully!");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to assign task.");
+    }
+  };
 
   const handleLogin = (loggedInUser) => {
     setUser(loggedInUser);
@@ -237,9 +310,146 @@ function App() {
               <h2>My Projects</h2>
               <p>Keep track of your team's progress.</p>
             </div>
-            <button className="primary-button">+ New Project</button>
+            <button
+              className="primary-button"
+              onClick={() => setShowProjectForm(true)}
+            >
+              + New Project
+            </button>
+            {user.role === "admin" && (
+              <button
+                className="primary-button"
+                onClick={() => setShowTaskForm(true)}
+              >
+                + Assign Task
+              </button>
+            )}
           </div>
+          {showProjectForm && (
+            <form className="project-form" onSubmit={handleCreateProject}>
+              <h3>Create New Project</h3>
 
+              <input
+                type="text"
+                placeholder="Project name"
+                value={projectForm.name}
+                onChange={(e) =>
+                  setProjectForm({ ...projectForm, name: e.target.value })
+                }
+                required
+              />
+
+              <textarea
+                placeholder="Project description"
+                value={projectForm.description}
+                onChange={(e) =>
+                  setProjectForm({
+                    ...projectForm,
+                    description: e.target.value,
+                  })
+                }
+                required
+              />
+
+              <input
+                type="date"
+                value={projectForm.dueDate}
+                onChange={(e) =>
+                  setProjectForm({ ...projectForm, dueDate: e.target.value })
+                }
+              />
+
+              <button type="submit" className="primary-button">
+                Create Project
+              </button>
+
+              <button type="button" onClick={() => setShowProjectForm(false)}>
+                Cancel
+              </button>
+            </form>
+          )}
+          {showTaskForm && user.role === "admin" && (
+            <form className="project-form" onSubmit={handleCreateTask}>
+              <h3>Assign New Task</h3>
+
+              <input
+                type="text"
+                placeholder="Task title"
+                value={taskForm.title}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, title: e.target.value })
+                }
+                required
+              />
+
+              <textarea
+                placeholder="Task description"
+                value={taskForm.description}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, description: e.target.value })
+                }
+              />
+
+              <select
+                value={taskForm.project}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, project: e.target.value })
+                }
+                required
+              >
+                <option value="">Select project</option>
+                {projects.map((project) => (
+                  <option key={project._id} value={project._id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={taskForm.assignedTo}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, assignedTo: e.target.value })
+                }
+                required
+              >
+                <option value="">Select team member</option>
+                {users
+                  .filter((member) => member.role === "member")
+                  .map((member) => (
+                    <option key={member._id} value={member._id}>
+                      {member.name}
+                    </option>
+                  ))}
+              </select>
+
+              <select
+                value={taskForm.priority}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, priority: e.target.value })
+                }
+              >
+                <option value="Low">Low Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="High">High Priority</option>
+              </select>
+
+              <input
+                type="date"
+                value={taskForm.dueDate}
+                onChange={(e) =>
+                  setTaskForm({ ...taskForm, dueDate: e.target.value })
+                }
+              />
+
+              <button type="submit" className="primary-button">
+                Assign Task
+              </button>
+
+              <button type="button" onClick={() => setShowTaskForm(false)}>
+                Cancel
+              </button>
+            </form>
+          )}
           <div className="project-grid">
             {projects.length === 0 ? (
               <p>No projects available yet.</p>

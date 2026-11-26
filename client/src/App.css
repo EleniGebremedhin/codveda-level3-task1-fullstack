@@ -619,3 +619,45 @@ select {
   color: white;
   transform: translateY(-2px);
 }
+.project-form {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 600px;
+}
+
+.project-form h3 {
+  margin: 0 0 8px;
+}
+
+.project-form input,
+.project-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.project-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.project-form button {
+  cursor: pointer;
+}
+.project-form select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font: inherit;
+  background: white;
+}
