@@ -23,7 +23,10 @@ connectDB();
 
 // Test route
 app.get("/", (req, res) => {
-  res.send("TeamSpace API is running!");
+  res.status(200).json({
+    message: "TeamSpace API is running!",
+    status: "healthy",
+  });
 });
 
 // Start server
